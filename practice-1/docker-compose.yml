@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./site-content:/usr/share/nginx/html
+    user: nginx
+    restart: unless-stopped
+    environment:
+      - NGINX_HOST=Test.com
+      - NGINX_PORT=443
+    depends_on:
+      - php
+      - webapp
+
+  redis:
+    image: redis:7.0-alpine
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - redis-data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_LOGGING_LEVEL=notice
+      - REDIS_PORT=6679
+    ports:
+      - "6679:6379"
+    restart: unless-stopped
+
+  php:
+    image: php:8.1-fpm-alpine
+    volumes:
+      - ./site-content:/var/www/html
+    environment:
+      - PHP_ERROR_LOG=/var/log/php_errors.log
+    restart: unless-stopped
+
+  webapp:
+    build:
+      context: ./dotnetapp
+      dockerfile: Dockerfile  
+    volumes:
+      - webapp-data:/app
+    working_dir: /app
+    command: dotnet TestAspNetApp.dll
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  webapp-data:
+
+networks:
+  default:
+    driver: bridge
